@@ -1,0 +1,64 @@
+name: Build Frida Android ARM64
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r25c
+        add-to-path: true
+
+    - name: Apply patches and build
+      run: |
+        # Clone frida-java-bridge
+        git clone --recurse-submodules https://github.com/frida/frida.git
+        cd frida
+        mkdir android-arm64
+        cd android-arm64
+        ../configure --host=android-arm64
+        make
+
+        # Setup frida-java-bridge
+        cd ..
+        git clone https://github.com/matbrik/frida-java-bridge.git
+        cd frida-java-bridge
+        npm install
+        npm link
+        cd ../android-arm64
+
+        # Patch generate-runtime.py
+        sed -i '/frida_compile = priv_dir/i \    subprocess.run([npm, "link", "frida-java-bridge"], capture_output=True, cwd=priv_dir, check=True)' ../subprojects/frida-gum/bindings/gumjs/generate-runtime.py
+        
+        # Build
+        make
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frida-server
+        path: android-arm64/subprojects/frida-core/server/
+        retention-days: 7
