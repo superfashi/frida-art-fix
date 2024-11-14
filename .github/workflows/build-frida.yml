@@ -33,33 +33,33 @@ jobs:
         echo "ANDROID_NDK_ROOT=$PWD/android-ndk-r25c" >> $GITHUB_ENV
         echo "$PWD/android-ndk-r25" >> $GITHUB_PATH
 
-    - name: Apply patches and build
+    - name: Clone and make frida 16.5.6
       run: |
-        # Clone frida-java-bridge
         git clone --recurse-submodules https://github.com/frida/frida.git
         cd frida
+        git checkout 16.5.6
         mkdir android-arm64
         cd android-arm64
         ../configure --host=android-arm64
         make
 
-        # Setup frida-java-bridge
-        cd ..
+    - name: Setup frida-java-bridge
+      run: |
+        cd frida
         git clone https://github.com/matbrik/frida-java-bridge.git
         cd frida-java-bridge
         npm install
         npm link
-        cd ../android-arm64
 
-        # Patch generate-runtime.py
+    - name: Patch and recompile
+      run: |
+        cd frida/android-arm64
         sed -i '/frida_compile = priv_dir/i \    subprocess.run([npm, "link", "frida-java-bridge"], capture_output=True, cwd=priv_dir, check=True)' ../subprojects/frida-gum/bindings/gumjs/generate-runtime.py
-        
-        # Build
         make
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: frida-server
-        path: android-arm64/subprojects/frida-core/server/
+        path: frida/android-arm64/subprojects/frida-core/server/
         retention-days: 7
