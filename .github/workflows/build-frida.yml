@@ -26,11 +26,12 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install Android NDK
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r25
-        add-to-path: true
+    - name: Install Android NDK r25c
+      run: |
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip android-ndk-r25c-linux.zip
+        echo "ANDROID_NDK_ROOT=$PWD/android-ndk-r25c" >> $GITHUB_ENV
+        echo "$PWD/android-ndk-r25" >> $GITHUB_PATH
 
     - name: Apply patches and build
       run: |
